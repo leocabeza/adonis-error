@@ -1,0 +1,234 @@
+@set('title', 'Nueva órden')
+
+@section('main')
+  <div class="columns my-3 is-centered">
+    <div class="column is-full-mobile is-half-tablet is-one-third-widescreen">
+      <form class="box" action="{{ route('OrdersController.store') }}" method="POST">
+        {{ csrfField() }}
+
+        <div class="field {{flashMessages.has('errors.deliveryDate') ? 'errored' : ''}}">
+          <label for="deliveryDate" class="label">Fecha de entrega</label>
+          <div class="control control-date">
+            <input
+              id="deliveryDate"
+              type="date"
+              class="input {{flashMessages.has('errors.deliveryDate') ? 'is-danger' : ''}}"
+              name="deliveryDate"
+              value="{{ flashMessages.get('deliveryDate') || '' }}"
+            />
+
+            @if(flashMessages.has('errors.deliveryDate'))
+              <p class="help is-danger">{{flashMessages.get('errors.deliveryDate')}}</p>
+            @end
+          </div>
+        </div>
+
+        <div class="field {{flashMessages.has('errors.clientId') ? 'errored' : ''}}">
+          <label class="label">Cliente</label>
+        </div>
+
+        <div class="field">
+          <p class="control has-icons-right has-icons-left">
+            <input
+              class="input"
+              type="text"
+              name="clientName"
+              placeholder="Buscar cliente..."
+              id="client-search-input"
+              value="{{flashMessages.get('clientName') || ''}}"
+            />
+            <span class="icon is-left">
+              <ion-icon name="search-outline"></ion-icon>
+            </span>
+            <a href="#" class="icon is-right" style="pointer-events:auto;" onclick="javascript:resetClientField()">
+              <span>
+                <ion-icon name="close-outline"></ion-icon>
+              </span>
+            </a>
+          </p>
+        </div>
+
+        <div class="field {{flashMessages.has('errors.clientId') ? 'errored' : ''}}">
+          <div class="control">
+            <div class="select {{flashMessages.has('errors.clientId') ? 'is-danger' : ''}}">
+              <select
+                name="clientId"
+                id="clientId"
+                class="select"
+              >
+                <option value="">Seleccione un cliente...</option>
+                @each(client in clients)
+                  @if (flashMessages.get('clientId') == client.id )
+                    <option selected value="{{flashMessages.get('clientId')}}">{{client.formattedName}}</option>
+                  @else
+                    <option value="{{client.id}}">{{client.formattedName}}</option>
+                  @endif
+                @endeach
+              </select>
+            </div>
+
+            @if(flashMessages.has('errors.clientId'))
+              <p class="help is-danger">{{flashMessages.get('errors.clientId')}}</p>
+            @end
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="addressId" class="label">Dirección de envío</label>
+          <div class="control control-select">
+            <div class="select {{flashMessages.has('errors.addressId') ? 'is-danger' : ''}}">
+              <select name="addressId" id="addressId" class="select">
+                <option value="">Seleccione un cliente para ver direcciones...</option>
+
+                @if(flashMessages.has('clientId'))
+                  @each(address in clients.filter(c => c.id == flashMessages.get('clientId'))[0]?.addresses)
+                    @if(flashMessages.has('addressId'))
+                      <option selected value="{{flashMessages.get('addressId')}}">{{address.line_1}}</option>
+                    @else
+                      <option value="{{address.id}}">{{address.line_1}}</option>
+                    @endif
+                  @endeach
+                @endif
+              </select>
+            </div>
+
+            @if(flashMessages.has('errors.addressId'))
+              <p class="help is-danger">{{flashMessages.get('errors.addressId')}}</p>
+            @end
+          </div>
+        </div>
+
+        <div class="field {{flashMessages.has('errors.products') ? 'errored' : ''}}">
+          <label class="label">Productos</label>
+
+          {{-- since product list can be long, we show this above it  --}}
+          @if(flashMessages.has('errors.products'))
+            <p class="help is-danger">{{flashMessages.get('errors.products')}}</p>
+          @end
+        </div>
+
+        @set('flashProductsArray', Object.values(Object.values(flashMessages.get('products', {}))))
+
+        <div id="product-list-container" class="field products-list-container pt-4 {{className}}">
+          @each((product, index) in products)
+            @set('currentPreOrderProduct', preOrder?.products.find(p => p.$extras.pivot_product_id === product.id))
+            <div class="is-flex is-align-items-center mb-2 products-list-item {{index % 2 === 0 ? 'has-background-info-light' : ''}}" data-product-name="{{product.name.toLowerCase()}}">
+              <label class="label px-2 mb-0" for="{{`product-item-${index}`}}">
+                {{product.name}}
+              </label>
+              <input
+                id="product-item-{{index}}"
+                name="products[{{index}}][quantity]"
+                class="input"
+                type="number"
+                min="0"
+                value="{{flashProductsArray[index]?.quantity || 0}}"
+              >
+              <input type="hidden" name="products[{{index}}][id]" value="{{product.id}}">
+          </div>
+          @endeach
+        </div>
+
+        <div class="field">
+          <label for="discount" class="label">Descuento</label>
+          <div class="control {{flashMessages.has('errors.discount') ? 'has-icons-right' : ''}}">
+            <input
+              id="discount"
+              type="number"
+              class="input {{flashMessages.has('errors.discount') ? 'is-danger' : ''}}"
+              name="discount"
+              value="{{ flashMessages.get('discount') || 0 }}"
+              maxlength="6"
+            />
+
+            @if(flashMessages.has('errors.discount'))
+              <p class="help is-danger">{{flashMessages.get('errors.discount')}}</p>
+            @end
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="shipmentStatus" class="label">Estado</label>
+          <div class="control control-select {{flashMessages.has('errors.shipmentStatus') ? 'has-icons-right' : ''}}">
+            <div class="select">
+              <select name="shipmentStatus" id="shipmentStatus" class="select">
+                @if(flashMessages.get('shipmentStatus') === 'PAID')
+                  <option selected value="PAID">Pago</option>
+                  <option value="WILL_PAY_CASH">Paga en efectivo</option>
+                  <option value="WILL_PAY_ONLY_DELIVERY">Paga domicilio</option>
+                @elseif(flashMessages.get('shipmentStatus') === 'WILL_PAY_ONLY_DELIVERY')
+                  <option value="PAID">Pago</option>
+                  <option value="WILL_PAY_CASH">Paga en efectivo</option>
+                  <option selected value="WILL_PAY_ONLY_DELIVERY">Paga domicilio</option>
+                @else
+                  <option value="PAID">Pago</option>
+                  <option selected value="WILL_PAY_CASH">Paga en efectivo</option>
+                  <option value="WILL_PAY_ONLY_DELIVERY">Paga domicilio</option>
+                @endif
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="shipmentCost" class="label">Costo envío</label>
+          <div class="control {{flashMessages.has('errors.shipmentCost') ? 'has-icons-right' : ''}}">
+            <input
+              id="shipmentCost"
+              type="number"
+              class="input {{flashMessages.has('errors.shipmentCost') ? 'is-danger' : ''}}"
+              name="shipmentCost"
+              value="{{ flashMessages.get('shipmentCost') || preOrder?.shippingTotal || 0 }}"
+              maxlength="6"
+            />
+
+            @if(flashMessages.has('errors.shipmentCost'))
+              <p class="help is-danger">{{flashMessages.get('errors.shipmentCost')}}</p>
+            @end
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="observations" class="label">Observaciones</label>
+          <div class="control">
+            <textarea
+              id="observations"
+              class="textarea"
+              name="observations"
+              rows="4"
+              cols="25"
+              maxlength="200"
+            >{{flashMessages.get('observations') || ''}}</textarea>
+          </div>
+        </div>
+
+        <div class="field is-flex is-justify-content-end">
+          <label for="isPackaged" class="checkbox">
+            <input
+              type="checkbox"
+              id="isPackaged"
+              name="isPackaged"
+              value="{{flashMessages.get('isPackaged') || ''}}"
+            />
+            ¿Pedido Listo?
+          </label>
+        </div>
+
+        <div class="field is-grouped is-grouped-right">
+          <p class="control">
+            <button class="button is-primary" type="submit">
+              <span class="icon-text">
+                <span class="icon">
+                  <ion-icon name="save"></ion-icon>
+                </span>
+                <span>Guardar</span>
+              </span>
+            </button>
+          </p>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {{inspect(flashMessages)}}
+@end
